@@ -1,0 +1,10 @@
+{% extends "app.html" %}
+{% block title %}About Page{% endblock title %}
+{% block content %}
+    <hr>
+    <p>this is about page of grocery</p>
+    {% for item in fruits %}
+        <p>{{ item }}</p>
+    {% endfor %}
+
+{% endblock content %}

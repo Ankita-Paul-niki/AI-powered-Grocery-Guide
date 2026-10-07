@@ -1,0 +1,14 @@
+{% extends "app.html" %}
+
+{% block title %}Home Page{% endblock title %}
+
+{% block content %}
+    <hr>
+    <div>
+        <h1>SITE INFORMATIONS</h1>
+        <p>Site Title - {{ site_title }}</p>
+        <p>Site Description - {{ site_description }}</p>
+        <p>Site Image</p> <img src="{{ site_image }}" alt="site image">
+        
+    </div>
+{% endblock content %}
