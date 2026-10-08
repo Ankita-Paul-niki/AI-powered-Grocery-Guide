@@ -64,7 +64,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'grocery_db',
         'USER': 'root',               
-        'PASSWORD': 'sssss',#your password   
+        'PASSWORD': 'ssssssss',#your password   
         'HOST': 'localhost',
         'PORT': '3306',
     }
