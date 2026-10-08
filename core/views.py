@@ -1,7 +1,5 @@
-from django.shortcuts import render
-from django.http import HttpResponse
-
 from django.shortcuts import render, redirect
+from django.http import HttpResponse
 from django.contrib.auth import login, logout
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib import messages
@@ -10,19 +8,6 @@ from django.conf import settings
 from .forms import RegisterForm
 
 # Create your views here.
-
-def home(request):
-    site_title="Welcome to Grocery Guide"
-    site_description="This is your assistant for all your grocery needs. Find the best products, recipes, and tips just by entering your budget and recipe name. Our app will provide you with a list of ingredients and their prices, so you can make informed decisions and save money on your grocery shopping."
-    site_image="https://hips.hearstapps.com/hmg-prod/images/online-buying-and-delivery-concept-royalty-free-image-1675370119.jpg?crop=0.563xw:1.00xh;0.216xw,0&resize=640:*"
-    payload = {
-        'site_title': site_title,   
-        'site_description': site_description,
-        'site_image': site_image    
-    }
- 
-    
-    return render(request, 'home.html', payload)
 
 def about(request):
     fruits = ['Apple', 'Banana', 'Mango', 'Orange', 'Grapes']
@@ -37,20 +22,15 @@ def services(request):
 def contact(request):
     return render(request, "contact.html")
 
-
 def bootstrap(request):
     return render(request, 'bootstrap.html')
 
-
-
-
-
-
-
+# This is your main home view template loader
 def home(request):
     return render(request, 'bootstrap.html')
 
 def register_view(request):
+    # If they are already logged in, send them away from the signup page
     if request.user.is_authenticated:
         return redirect('home')
 
@@ -59,10 +39,7 @@ def register_view(request):
         if form.is_valid():
             user = form.save()
 
-            # 1. Log the user in right away
-            login(request, user)
-
-            # 2. Send the Welcome Email
+            # 1. Send the Welcome Email
             subject = 'Welcome to Grocery Guide!'
             message = (
                 f"Hello {user.first_name or user.username},\n\n"
@@ -83,8 +60,9 @@ def register_view(request):
             except Exception as e:
                 print(f"Error sending email: {e}")
 
-            messages.success(request, f"Welcome to Grocery Guide, {user.username}!")
-            return redirect('home')
+            # 2. Inform user and send them directly to the Login page instead of auto-logging in
+            messages.success(request, f"Account created successfully for {user.username}! Please login below.")
+            return redirect('login')
         else:
             messages.error(request, "Please fix the errors below.")
     else:
