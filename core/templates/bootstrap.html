@@ -75,20 +75,16 @@
                                 <i class="fa fa-shopping-bag fa-2x"></i>
                                 <span class="position-absolute bg-secondary rounded-circle d-flex align-items-center justify-content-center text-dark px-1" style="top: -5px; left: 15px; height: 20px; min-width: 20px;">3</span>
                             </a>
-                            {% if user.is_authenticated %}
-    <!-- If logged in: Show their username, a small logout link, and a logout button -->
-    <span class="me-2 my-auto text-muted small">Hi, {{ user.username }}</span>
-    <a href="{% url 'logout' %}" class="btn btn-sm btn-outline-danger rounded-pill me-4 my-auto py-1 px-3">
-        <i class="fas fa-sign-out-alt me-1"></i> Logout
-    </a>
-{% else %}
-    <!-- If logged out: Show the standard human icon pointing to register -->
-    <a href="{% url 'register' %}" class="my-auto">
-        <i class="fas fa-user fa-2x"></i>
-    </a>
-{% endif %}
-
-
+                            <a href="{% url 'login' %}" class="my-auto">
+                                <i class="fas fa-user fa-2x"></i>
+                            </a>
+    <!-- DYNAMIC HELLO USERNAME AND AUTH LINKS -->
+    {% if user.is_authenticated %}
+        <span class="me-3 my-auto text-muted small fw-bold">Hello, {{ user.username }}</span>
+        <a href="{% url 'logout' %}" class="my-auto btn btn-sm btn-outline-danger rounded-pill py-1 px-3 me-2" title="Log Out from Account">
+            Logout
+        </a>
+        {% endif %}
                         </div>
                     </div>
                 </nav>
@@ -159,9 +155,7 @@
 
         <!-- Featurs Section Start -->
         <div class="container-fluid featurs py-5">
-            
             <div class="container py-5">
-                
                 <div class="row g-4">
                     <div class="col-md-6 col-lg-3">
                         <div class="featurs-item text-center rounded bg-light p-4">
@@ -1139,6 +1133,158 @@
             }
         });
     </script>
+    <!-- 1. THE FLOATING JUMPING BOT ICON BUTTON -->
+    <div class="ai-bot-wrapper-fixed" id="aiBotIcon" onclick="toggleChatSidebar(event)">
+         <img src="/static/img/aibot.png" alt="AI Bot" class="jumping-ai-icon-fixed">
+    </div>
+
+    <!-- 2. THE CHAT SIDEBAR PANEL CONTAINER -->
+    <div id="aiChatSidebar" class="ai-chat-sidebar">
+        <div class="chat-container-direct">
+            <div class="chat-header-direct">
+                <img src="/static/img/aibot.png" class="bot-avatar-direct" alt="Bot">
+                <span>Grocery Guide AI Assistant</span>
+                <!-- Close Button -->
+                <button onclick="toggleChatSidebar(event)" class="close-sidebar-btn">&times;</button>
+            </div>
+            <div class="chat-messages-direct">
+                <div class="welcome-msg-direct">
+                    Hello! I am your AI assistant. Type your budget or recipe name here to get started!
+                </div>
+            </div>
+            <div class="chat-input-area-direct">
+                <input type="text" class="form-control me-2" placeholder="Ask about recipes or budget...">
+                <button class="btn btn-primary">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. SIDEBAR LAYOUT STYLING RULES -->
+    <style>
+        .ai-bot-wrapper-fixed {
+            position: fixed !important;
+            bottom: 30px !important;
+            left: 30px !important;
+            z-index: 999998 !important;
+            width: 75px !important;
+            height: auto !important;
+            cursor: pointer !important;
+        }
+
+        .jumping-ai-icon-fixed {
+            width: 100% !important;
+            height: auto !important;
+            filter: drop-shadow(2px 8px 12px rgba(0,0,0,0.25)) !important;
+            animation: bounceBotWidget 1.2s infinite alternate ease-in-out !important;
+        }
+
+        /* Sidebar panel pinned off-screen to the left by default */
+        .ai-chat-sidebar {
+            position: fixed;
+            top: 0;
+            left: -420px; /* Hidden off-screen initially */
+            width: 400px;
+            height: 100vh;
+            background: white;
+            box-shadow: 4px 0 24px rgba(0,0,0,0.15);
+            z-index: 999999 !important;
+            transition: left 0.3s ease-in-out; /* Smooth sliding transition engine */
+        }
+
+        /* Active styling class to slide panel out into view */
+        .ai-chat-sidebar.open {
+            left: 0;
+        }
+
+        .chat-container-direct {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .chat-header-direct {
+            background-color: #81c408;
+            color: white;
+            padding: 20px 15px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+        }
+
+        .bot-avatar-direct {
+            width: 35px;
+            height: auto;
+        }
+
+        .close-sidebar-btn {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .chat-messages-direct {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background-color: #f8f9fa;
+        }
+
+        .welcome-msg-direct {
+            background-color: #e9ecef;
+            padding: 12px 16px;
+            border-radius: 12px;
+            max-width: 85%;
+            margin-bottom: 10px;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .chat-input-area-direct {
+            display: flex;
+            padding: 15px;
+            border-top: 1px solid #eee;
+            background: white;
+        }
+
+        @keyframes bounceBotWidget {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-22px); }
+        }
+    </style>
+
+    <!-- 4. SIDEBAR TOGGLE AND OUTSIDE CLICK DETECTOR SCRIPT -->
+    <script>
+        function toggleChatSidebar(event) {
+            // Stops click event from triggering the background click listener immediately
+            event.stopPropagation();
+            var sidebar = document.getElementById("aiChatSidebar");
+            sidebar.classList.toggle("open");
+        }
+
+        // Global event listener to watch all clicks on the page background
+        document.addEventListener("click", function(event) {
+            var sidebar = document.getElementById("aiChatSidebar");
+            var iconButton = document.getElementById("aiBotIcon");
+            
+            // Check if the sidebar is open and the click happened completely outside the sidebar and the icon button
+            if (sidebar.classList.contains("open")) {
+                if (!sidebar.contains(event.target) && !iconButton.contains(event.target)) {
+                    sidebar.classList.remove("open");
+                }
+            }
+        });
+    </script>
+
 
     </body>
 
