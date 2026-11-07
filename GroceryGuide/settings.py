@@ -70,7 +70,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'grocery_db',
         'USER': 'root',               
-        'PASSWORD': 'sanchitapodder@25',#your password   
+        'PASSWORD': 'sss',#your password   
         'HOST': 'localhost',
         'PORT': '3306',
     }
@@ -107,6 +107,6 @@ EMAIL_USE_TLS =True
 EMAIL_USE_SSL =False
 
 EMAIL_HOST_USER = 'groceryguideai@gmail.com'
-EMAIL_HOST_PASSWORD = 'hfvzckaiomvxohbw'
+EMAIL_HOST_PASSWORD = "hhjjhhkhjuyugf"
 DEFAULT_FROM_EMAIL = 'groceryguideai@gmail.com'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
