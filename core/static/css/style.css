@@ -460,3 +460,113 @@
 }
 /*** Footer End ***/
 
+/* --- Uniform Product Grid Alignment Fix --- */
+.fruite-item {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.fruite-item .fruite-img {
+    width: 100%;
+    height: 200px;
+    overflow: hidden;
+}
+
+.fruite-item .fruite-img img {
+    width: 100%;
+    height: 100% !important;
+    object-fit: cover !important;
+}
+
+.fruite-item .p-4 {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.fruite-item .p-4 .d-flex.justify-content-between {
+    margin-top: auto;
+}
+.fruite-item .p-4 {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.fruite-item .p-4 .d-flex.justify-content-between {
+    margin-top: auto;
+}
+/* --- Professional Product Card Description Clamp --- */
+.fruite-item .p-4 p {
+    display: -webkit-box;
+    -webkit-line-clamp: 2; /* Limits description to max 2 lines */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    height: 48px; /* Fixed height for text area so all cards align perfectly */
+    margin-bottom: 15px;
+}
+/* --- Perfect Equal-Height Product Grid Alignment Fix --- */
+.col-md-6.col-lg-6.col-xl-4 {
+    display: flex !important;
+}
+
+.fruite-item {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    height: 100% !important;
+    transition: 0.5s;
+}
+
+.fruite-item .fruite-img {
+    width: 100% !important;
+    height: 200px !important;
+    overflow: hidden !important;
+}
+
+.fruite-item .fruite-img img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+}
+
+.fruite-item .p-4 {
+    display: flex !important;
+    flex-direction: column !important;
+    flex-grow: 1 !important;
+}
+
+.fruite-item .p-4 p {
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    margin-bottom: 15px !important;
+}
+
+.fruite-item .p-4 .d-flex.justify-content-between {
+    margin-top: auto !important;
+}
+/* --- Force Price and Add-to-Cart Button Side-by-Side --- */
+.fruite-item .p-4 .d-flex.justify-content-between {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+}
+
+.fruite-item .p-4 .d-flex.justify-content-between p {
+    margin-bottom: 0 !important;
+    height: auto !important;
+}
+
+/* Adjust button padding slightly so it fits neatly beside any price length */
+.fruite-item .btn {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    font-size: 0.85rem !important;
+    white-space: nowrap !important;
+}

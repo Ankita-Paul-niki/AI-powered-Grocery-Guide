@@ -38,5 +38,27 @@
                         <button type="submit" class="btn btn-primary w-100 py-2 mt-2 text-white">Sign In</button>
                     </form>
 
+                    <!-- --- GOOGLE LOGIN ADDITION START --- -->
+                    <div class="position-relative d-flex align-items-center justify-content-center my-4">
+                        <hr class="w-100 text-muted">
+                        <span class="position-absolute bg-white px-3 text-muted small fw-semibold">OR</span>
+                    </div>
+
+                    <!-- We use the direct URL path instead of the socialaccount template tag -->
+                    <a href="/accounts/google/login/" class="btn btn-outline-danger w-100 py-2 d-flex align-items-center justify-content-center gap-2 rounded-2">
+                        <svg xmlns="http://w3.org" width="16" height="16" fill="currentColor" class="bi bi-google" viewBox="0 0 16 16">
+                            <path d="M8.684 7.197v2.6h4.143c-.168 1.162-.78 1.999-1.848 2.648v2.196h3.004c1.758-1.617 2.771-4.002 2.771-6.844 0-.58-.051-1.124-.144-1.64H8.684zm-5.084 4.89c-.612-.26-1.122-.676-1.488-1.196L1.108 13.06c.747 1.437 2.023 2.505 3.565 2.894l1.455-2.22c-.676-.174-1.282-.497-1.776-.902l.248-.747zm7.57-8.156c-1.39 0-2.6.804-3.181 1.975l2.454 1.884c.328-.65.996-1.096 1.775-1.096.85 0 1.57.534 1.84 1.281l2.42-1.859c-.628-1.306-1.954-2.185-3.52-2.185z"/>
+                        </svg>
+                        <span class="fw-semibold">Continue with Google</span>
+                    </a>
+                    <!-- --- GOOGLE LOGIN ADDITION END --- -->
+
                     <div class="text-center mt-3">
-                        <small>New
+                        <a href="{% url 'register' %}" class="text-muted text-decoration-none small">New? Register here</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

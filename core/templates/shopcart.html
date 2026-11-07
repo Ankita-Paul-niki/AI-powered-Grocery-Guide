@@ -1,0 +1,189 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="utf-8">
+        <title>Shop Cart - Grocery Guide</title>
+        <meta content="width=device-width, initial-scale=1.0" name="viewport">
+
+        <!-- Google Web Fonts -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&family=Raleway:wght@600;800&display=swap" rel="stylesheet"> 
+
+        <!-- Icon Font Stylesheet -->
+        <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css"/>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css" rel="stylesheet">
+
+        <!-- Customized Bootstrap Stylesheet -->
+        <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet">
+        <!-- Template Stylesheet -->
+        <link href="{% static 'css/style.css' %}" rel="stylesheet">
+    </head>
+
+    <body>
+
+        <!-- Navbar start -->
+        <div class="container-fluid fixed-top">
+            <div class="container topbar bg-primary d-none d-lg-block">
+                <div class="d-flex justify-content-between">
+                    <div class="top-info ps-2">
+                        <small class="me-3"><i class="fas fa-map-marker-alt me-2 text-secondary"></i> <a href="#" class="text-white">123 Street, India</a></small>
+                        <small class="me-3"><i class="fas fa-envelope me-2 text-secondary"></i><a href="#" class="text-white">groceryguideai@gmail.com</a></small>
+                    </div>
+                </div>
+            </div>
+            <div class="container px-0">
+                <nav class="navbar navbar-light bg-white navbar-expand-xl">
+                    <a href="{% url 'home' %}" class="navbar-brand"><h1 class="text-primary display-6">Grocery Guide</h1></a>
+                    <button class="navbar-toggler py-2 px-3" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse">
+                        <span class="fa fa-bars text-primary"></span>
+                    </button>
+                    <div class="collapse navbar-collapse bg-white" id="navbarCollapse">
+                        <div class="navbar-nav mx-auto">
+                            <a href="{% url 'home' %}" class="nav-item nav-link">Home</a>
+                            <a href="{% url 'shop_page' %}" class="nav-item nav-link">Shop</a>
+                            <a href="{% url 'cart_page' %}" class="nav-item nav-link active">Shop Cart</a>
+                            <a href="#" class="nav-item nav-link">Checkout</a>
+                            <a href="{% url 'contact_page' %}" class="nav-item nav-link">Contact</a>
+                        </div>
+                    </div>
+                </nav>
+            </div>
+        </div>
+        <!-- Navbar End -->
+
+        <!-- Single Page Header start -->
+        <div class="container-fluid page-header py-5">
+            <h1 class="text-center text-white display-6">Cart</h1>
+            <ol class="breadcrumb justify-content-center mb-0">
+                <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'shop_page' %}">Shop</a></li>
+                <li class="breadcrumb-item active text-white">Cart</li>
+            </ol>
+        </div>
+        <!-- Single Page Header End -->
+
+        <!-- Cart Page Start -->
+        <div class="container-fluid py-5">
+            <div class="container py-5">
+                
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-info alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                {% if cart_items %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                          <tr>
+                            <th scope="col">Products</th>
+                            <th scope="col">Name</th>
+                            <th scope="col">Price</th>
+                            <th scope="col">Quantity</th>
+                            <th scope="col">Total</th>
+                            <th scope="col">Handle</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in cart_items %}
+                            <tr>
+                                <th scope="row">
+                                    <div class="d-flex align-items-center">
+                                        {% if item.product.image %}
+                                            <img src="{{ item.product.image.url }}" class="img-fluid me-5 rounded-circle" style="width: 80px; height: 80px; object-fit: cover;" alt="{{ item.product.title }}">
+                                        {% else %}
+                                            <img src="{% static 'img/fruite-item-5.jpg' %}" class="img-fluid me-5 rounded-circle" style="width: 80px; height: 80px; object-fit: cover;" alt="Default Image">
+                                        {% endif %}
+                                    </div>
+                                </th>
+                                <td>
+                                    <p class="mb-0 mt-4 fw-bold">{{ item.product.title }}</p>
+                                    <small class="text-muted">{{ item.product.full_measurement }}</small>
+                                </td>
+                                <td>
+                                    <p class="mb-0 mt-4">₹{{ item.product.price }}</p>
+                                </td>
+                                <td>
+                                    <!-- Dynamic - Quantity + Widget -->
+                                    <div class="input-group quantity mt-4" style="width: 120px;">
+                                        <div class="input-group-btn">
+                                            <a href="{% url 'remove_from_cart' item.product.id %}" class="btn btn-sm btn-minus rounded-circle bg-light border">
+                                                <i class="fa fa-minus"></i>
+                                            </a>
+                                        </div>
+                                        <input type="text" class="form-control form-control-sm text-center border-0" value="{{ item.quantity }}" readonly>
+                                        <div class="input-group-btn">
+                                            <a href="{% url 'add_to_cart' item.product.id %}" class="btn btn-sm btn-plus rounded-circle bg-light border">
+                                                <i class="fa fa-plus"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <p class="mb-0 mt-4 fw-bold">₹{{ item.total_price }}</p>
+                                </td>
+                                <td>
+                                    <a href="{% url 'delete_cart_item' item.id %}" class="btn btn-md rounded-circle bg-light border mt-4">
+                                        <i class="fa fa-times text-danger"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="row g-4 justify-content-end mt-4">
+                    <div class="col-8"></div>
+                    <div class="col-sm-8 col-md-7 col-lg-6 col-xl-4">
+                        <div class="bg-light rounded p-4">
+                            <h1 class="display-6 mb-4">Cart <span class="fw-normal">Total</span></h1>
+                            <div class="d-flex justify-content-between mb-4">
+                                <h5 class="mb-0 me-4">Subtotal:</h5>
+                                <p class="mb-0">₹{{ subtotal }}</p>
+                            </div>
+                            <div class="d-flex justify-content-between mb-4">
+                                <h5 class="mb-0 me-4">Shipping:</h5>
+                                <p class="mb-0">₹{{ shipping_fee }}</p>
+                            </div>
+                            <div class="py-3 border-top border-bottom d-flex justify-content-between">
+                                <h5 class="mb-0 me-4">Total:</h5>
+                                <p class="mb-0 fw-bold text-dark fs-5">₹{{ total }}</p>
+                            </div>
+                            <a href="#" class="btn border-secondary rounded-pill px-4 py-3 text-primary text-uppercase mb-4 mt-4 w-100">Proceed Checkout</a>
+                        </div>
+                    </div>
+                </div>
+
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fa fa-shopping-cart fa-4x text-muted mb-3"></i>
+                    <h3 class="text-muted">Your cart is currently empty!</h3>
+                    <a href="{% url 'shop_page' %}" class="btn border border-secondary rounded-pill px-4 py-2 text-primary mt-3">Continue Shopping</a>
+                </div>
+                {% endif %}
+
+            </div>
+        </div>
+        <!-- Cart Page End -->
+
+        <!-- Footer Start -->
+        <div class="container-fluid bg-dark text-white-50 footer pt-5 mt-5">
+            <div class="container py-5 text-center">
+                <p class="text-light mb-0">&copy; Grocery Guide. All Rights Reserved.</p>
+            </div>
+        </div>
+        <!-- Footer End -->
+
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
+    </body>
+
+</html>
