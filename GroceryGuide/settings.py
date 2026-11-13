@@ -67,15 +67,14 @@ WSGI_APPLICATION = 'GroceryGuide.wsgi.application'
 # Unified Database Configuration (Active MySQL Environment Setup)
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'grocery_db',
-        'USER': 'root',               
-        'PASSWORD': 'sss',#your password   
-        'HOST': 'localhost',
-        'PORT': '3306',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'postgres',
+        'USER': 'user_name', 
+        'PASSWORD': 'pass',
+        'HOST': 'ank', 
+        'PORT': '5432',
     }
 }
-
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -99,14 +98,14 @@ STATIC_URL = 'static/'
        # 'BACKEND': 'django.core.mail.backends.smtp.EmailBackend',
   #  },
 #}
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-#EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+#EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS =True
 EMAIL_USE_SSL =False
-
+  
 EMAIL_HOST_USER = 'groceryguideai@gmail.com'
-EMAIL_HOST_PASSWORD = "hhjjhhkhjuyugf"
+EMAIL_HOST_PASSWORD = 'passpass'
 DEFAULT_FROM_EMAIL = 'groceryguideai@gmail.com'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

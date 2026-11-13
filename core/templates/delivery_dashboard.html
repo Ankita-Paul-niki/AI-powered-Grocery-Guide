@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="container py-5" style="margin-top: 120px;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-motorcycle text-primary me-2"></i> Delivery Partner Portal</h2>
+        
+        <!-- Attendance Toggle Button -->
+        <form method="POST" action="{% url 'toggle_attendance' %}">
+            {% csrf_token %}
+            {% if profile.is_attended_today %}
+                <button type="submit" class="btn btn-success shadow-sm">
+                    <i class="fas fa-check-circle me-1"></i> Attended Today (Active)
+                </button>
+            {% else %}
+                <button type="submit" class="btn btn-outline-danger shadow-sm">
+                    <i class="fas fa-user-clock me-1"></i> Off Duty (Click to Attend)
+                </button>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Active Assigned Orders -->
+    <div class="card border-0 shadow-sm mb-5">
+        <div class="card-header bg-primary text-white py-3">
+            <h5 class="mb-0 text-white"><i class="fas fa-box-open me-2"></i> Active Assigned Delivery</h5>
+        </div>
+        <div class="card-body p-4">
+            {% if active_orders %}
+                <div class="row g-4">
+                    {% for order in active_orders %}
+                        <div class="col-md-6 col-lg-6">
+                            <div class="card border shadow-sm">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h5 class="card-title text-primary mb-0">Order #{{ order.id }}</h5>
+                                        <span class="badge bg-warning text-dark px-3 py-2">{{ order.status }}</span>
+                                    </div>
+                                    
+                                    <p class="mb-1"><strong>Customer:</strong> {{ order.first_name }} {{ order.last_name }}</p>
+                                    <p class="mb-1"><strong>Phone:</strong> <a href="tel:{{ order.phone }}">{{ order.phone }}</a></p>
+                                    <p class="mb-1"><strong>Address:</strong> {{ order.address }}</p>
+                                    <p class="mb-3"><strong>Total Amount:</strong> ₹{{ order.total_price }}</p>
+
+                                    <!-- Proof Upload Form -->
+                                    <form method="POST" action="{% url 'confirm_delivery' order.id %}" enctype="multipart/form-data">
+                                        {% csrf_token %}
+                                        <div class="mb-3">
+                                            <label class="form-label small fw-bold">Upload Photo Proof:</label>
+                                            <input type="file" name="delivery_proof" class="form-control" accept="image/*" capture="environment" required>
+                                        </div>
+                                        <button type="submit" class="btn btn-success w-100 fw-bold">
+                                            <i class="fas fa-check-circle me-1"></i> Mark Delivered & Credit Pocket
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-mug-hot fa-3x text-muted mb-3"></i>
+                    <p class="text-muted mb-0">No active delivery assignments. Mark yourself present to receive incoming orders!</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}

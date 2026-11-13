@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}Delivery Partner Login{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="margin-top: 120px; max-width: 500px;">
+    <div class="card shadow-sm border-0 rounded-3">
+        <div class="card-header bg-primary text-white text-center py-4">
+            <h3 class="mb-0 text-white"><i class="fas fa-motorcycle me-2"></i> Delivery Partner Portal</h3>
+            <p class="mb-0 text-white-50 small">Sign in to manage your deliveries and rewards</p>
+        </div>
+        <div class="card-body p-4">
+            
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="POST" action="{% url 'delivery_login' %}">
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    <label for="id_username" class="form-label fw-bold">Username</label>
+                    <input type="text" name="username" id="id_username" class="form-control" placeholder="Enter delivery username" required>
+                </div>
+
+                <div class="mb-4">
+                    <label for="id_password" class="form-label fw-bold">Password</label>
+                    <input type="password" name="password" id="id_password" class="form-control" placeholder="Enter password" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">
+                    <i class="fas fa-sign-in-alt me-2"></i> Login to Delivery Portal
+                </button>
+            </form>
+        </div>
+        <div class="card-footer text-center bg-light py-3">
+            <small class="text-muted">Are you a regular customer? <a href="{% url 'login' %}" class="text-primary fw-bold">Customer Login</a></small>
+        </div>
+    </div>
+</div>
+{% endblock %}

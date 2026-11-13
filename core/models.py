@@ -103,7 +103,22 @@ class Product(models.Model):
         help_text="Optional: Explicit expiration date. Supercedes generic shelf life logic."
     )
     # --- END OPTIONAL DATES SECTION ---
+    BADGE_CHOICES = [
+        ('AUTO', 'Automatic (Based on system rules)'),
+        ('ORGANIC', 'Organic Only'),
+        ('FRESH', 'Fresh'),
+        ('DISCOUNT', 'Discount'),
+        ('EXPIRED', 'Expired'),
+        ('NONE', 'No Badge'),
+    ]
     
+    admin_badge = models.CharField(
+        max_length=20, 
+        choices=BADGE_CHOICES, 
+        default='AUTO',
+        help_text="Select a specific badge to force display on the product image, or keep Automatic."
+    )  
+    is_organic = models.BooleanField(default=False, help_text="Check if this product is organic")
     image = models.ImageField(upload_to='products/', blank=True, null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -217,8 +232,17 @@ class Order(models.Model):
     delivered_at = models.DateTimeField(null=True, blank=True)
     is_reward_credited = models.BooleanField(default=False)
     return_requested = models.BooleanField(default=False)
-    is_returned = models.BooleanField(default=False)
-
+        
+    
+    
+    delivery_proof = models.ImageField(upload_to='delivery_proofs/', blank=True, null=True)
+    delivery_person = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='assigned_orders'
+    )
     def __str__(self):
         return f"Order #{self.id} - {self.user.username}"
 class OrderItem(models.Model):
@@ -246,3 +270,29 @@ class ProductReview(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.product.title} ({self.rating}★)"
+class DeliveryProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='delivery_profile')
+    is_attended_today = models.BooleanField(default=False, help_text="Marked present for today's shift")
+    is_available = models.BooleanField(default=True, help_text="False if currently delivering an order")
+
+    def __str__(self):
+        status = "Available" if (self.is_attended_today and self.is_available) else "Busy/Off"
+        return f"{self.user.username} ({status})"
+class ContactMessage(models.Model):
+    name = models.CharField(max_length=100)
+    email = models.EmailField()
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Message from {self.name} ({self.email})"
+class Wishlist(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='wishlist')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'product')  # Prevents duplicate entries
+
+    def __str__(self):
+        return f"{self.user.username}'s Wishlist - {self.product.title}"

@@ -1,24 +1,48 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponse
-from django.contrib.auth import login, logout
-from django.contrib.auth.forms import AuthenticationForm
-from django.contrib import messages
-from django.core.mail import send_mail
-from django.conf import settings
-from .forms import RegisterForm
-from .models import Product,Category
-from core.models import *
+from functools import wraps
 import os
-from django.core.paginator import Paginator
-from .models import Product, Category, Cart, CartItem
-from decimal import Decimal
-from django.contrib.auth.decorators import login_required
-from django.utils import timezone
-from datetime import timedelta
 import threading
-from .models import Order, UserPocket
-from .models import ProductReview
-# Create your views here.
+from datetime import timedelta
+from decimal import Decimal
+from django.db import models
+from django.conf import settings
+from django.contrib import messages
+from django.contrib.auth import login, logout
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.forms import AuthenticationForm
+from django.core.mail import send_mail
+from django.core.paginator import Paginator
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from .models import ContactMessage
+from .forms import RegisterForm
+from django.db.models import Avg, Count, Q, F
+from .models import (
+    Cart,
+    CartItem,
+    Category,
+    DeliveryProfile,
+    Order,
+    OrderItem,
+    Product,
+    ProductImage,
+    ProductReview,
+    UserPocket,
+    Wishlist,  # <--- Ensure Wishlist is imported here
+)
+
+
+def get_cart_count(request):
+    """Helper to get total item quantity in the current user's cart."""
+    cart = None
+    if request.user.is_authenticated:
+        cart = Cart.objects.filter(user=request.user).first()
+    elif request.session.session_key:
+        cart = Cart.objects.filter(session_key=request.session.session_key, user=None).first()
+    
+    if cart:
+        return sum(item.quantity for item in cart.items.all())
+    return 0
+
 
 def about(request):
     fruits = ['Apple', 'Banana', 'Mango', 'Orange', 'Grapes']
@@ -27,37 +51,91 @@ def about(request):
     }
     return render(request, 'about.html', payload)
 
+
 def services(request):
     return render(request, "services.html")
 
-def contact(request):
-    return render(request, "contact.html")
+
 @login_required(login_url='login')
 def bootstrap(request):
     return render(request, 'bootstrap.html')
+
+
 @login_required(login_url='login')
 def shop_view(request):
     categories = Category.objects.all()
     products_qs = Product.objects.all()
 
-    # 1. Apply Category filter (using Category_slug from your model)
+    # 1. Category Filter
     category_slug = request.GET.get('category')
     if category_slug:
         products_qs = products_qs.filter(categories__Category_slug=category_slug)
 
-    # 2. Apply Search keyword filter
+    # 2. Keyword Search (e.g., "sugar")
     query = request.GET.get('keywords')
     if query:
         products_qs = products_qs.filter(title__icontains=query)
 
-    # 3. Retrieve current cart for logged-in user or guest session
+    # 3. Price Filter Slider (max price)
+    max_price = request.GET.get('max_price')
+    if max_price:
+        try:
+            products_qs = products_qs.filter(price__lte=Decimal(max_price))
+        except (ValueError, TypeError):
+            pass
+
+    # 4. Additional Filters (Organic, Fresh, Sales, Discount, Expired)
+    additional_filter = request.GET.get('additional')
+    today = timezone.now().date()
+
+    if additional_filter == 'organic':
+        products_qs = products_qs.filter(
+            Q(admin_badge='ORGANIC') | 
+            Q(admin_badge='AUTO', is_organic=True)
+        )
+    elif additional_filter == 'fresh':
+        products_qs = products_qs.filter(
+            Q(admin_badge='FRESH') | 
+            Q(admin_badge='AUTO', expiry_date__isnull=True) | 
+            Q(admin_badge='AUTO', expiry_date__gte=today)
+        )
+    elif additional_filter in ['sales', 'discount']:
+        products_qs = products_qs.filter(
+            Q(admin_badge='DISCOUNT') | 
+            Q(admin_badge='AUTO', original_price__isnull=False, original_price__gt=F('price'))
+        )
+    elif additional_filter == 'expired':
+        products_qs = products_qs.filter(
+            Q(admin_badge='EXPIRED') | 
+            Q(admin_badge='AUTO', expiry_date__isnull=False, expiry_date__lt=today)
+        )
+
+    # 5. Sorting Logic (Popularity based on customer reviews)
+    sort_option = request.GET.get('sort')
+    
+    # Annotate with average rating and total reviews for popularity sorting
+    products_qs = products_qs.annotate(
+        avg_rating=Avg('reviews__rating'),
+        review_count=Count('reviews')
+    )
+
+    if sort_option == 'popularity':
+        # Sort by highest average rating first, then by review count
+        products_qs = products_qs.order_by('-avg_rating', '-review_count', '-created_at')
+    elif sort_option == 'organic':
+        products_qs = products_qs.filter(is_organic=True).order_by('-created_at')
+    elif sort_option == 'fantastic':
+        products_qs = products_qs.order_by('-price')
+    else:
+        products_qs = products_qs.order_by('-created_at')
+
+    # Cart quantity tracking
     cart = None
     if request.user.is_authenticated:
         cart = Cart.objects.filter(user=request.user).first()
     elif request.session.session_key:
         cart = Cart.objects.filter(session_key=request.session.session_key, user=None).first()
 
-    # 4. Map product IDs to their current cart quantities
     cart_quantities = {}
     if cart:
         cart_quantities = {
@@ -65,11 +143,16 @@ def shop_view(request):
             for item in CartItem.objects.filter(cart=cart)
         }
 
-    # 5. Attach in_cart_qty attribute to each product in queryset
+    # Wishlist IDs for favorited status tracking
+    user_wishlist_ids = []
+    if request.user.is_authenticated:
+        user_wishlist_ids = list(Wishlist.objects.filter(user=request.user).values_list('product_id', flat=True))
+
     for product in products_qs:
         product.in_cart_qty = cart_quantities.get(product.id, 0)
+        product.is_favorited = product.id in user_wishlist_ids
 
-    # 6. Apply Django Paginator (9 items per page)
+    # Pagination setup
     paginator = Paginator(products_qs, 9)
     page_number = request.GET.get('page')
     products = paginator.get_page(page_number)
@@ -77,14 +160,53 @@ def shop_view(request):
     context = {
         'categories': categories,
         'products': products,
-        'cart_count': get_cart_count(request)
+        'cart_count': get_cart_count(request),
+        'selected_max_price': max_price,
+        'selected_additional': additional_filter,
+        'selected_sort': sort_option,
+        'search_query': query,
     }
     return render(request, 'shop.html', context)
+
+
+@login_required(login_url='login')
+def wishlist_view(request):
+    wishlist_items = Wishlist.objects.filter(user=request.user).select_related('product')
+    
+    cart = Cart.objects.filter(user=request.user).first()
+    cart_quantities = {}
+    if cart:
+        cart_quantities = {item.product_id: item.quantity for item in CartItem.objects.filter(cart=cart)}
+
+    for item in wishlist_items:
+        item.product.in_cart_qty = cart_quantities.get(item.product.id, 0)
+        item.product.is_favorited = True
+
+    context = {
+        'wishlist_items': wishlist_items,
+        'cart_count': get_cart_count(request),
+    }
+    return render(request, 'wishlist.html', context)
+
+
+@login_required(login_url='login')
+def toggle_wishlist_view(request, product_id):
+    product = get_object_or_404(Product, id=product_id)
+    wishlist_item, created = Wishlist.objects.get_or_create(user=request.user, product=product)
+    
+    if not created:
+        wishlist_item.delete()
+        messages.info(request, f"Removed {product.title} from your wishlist.")
+    else:
+        messages.success(request, f"Added {product.title} to your wishlist!")
+        
+    return redirect(request.META.get('HTTP_REFERER', 'shop_page'))
+
+
 @login_required(login_url='login')
 def add_to_cart(request, product_id):
     product = Product.objects.get(id=product_id)
     
-    # Get or create cart for logged-in user or session
     if request.user.is_authenticated:
         cart, created = Cart.objects.get_or_create(user=request.user)
     else:
@@ -93,7 +215,6 @@ def add_to_cart(request, product_id):
         session_key = request.session.session_key
         cart, created = Cart.objects.get_or_create(session_key=session_key, user=None)
     
-    # Get or create cart item
     cart_item, created = CartItem.objects.get_or_create(cart=cart, product=product)
     if not created:
         cart_item.quantity += 1
@@ -101,6 +222,8 @@ def add_to_cart(request, product_id):
         
     messages.success(request, f"Added {product.title} to your cart!")
     return redirect(request.META.get('HTTP_REFERER', 'shop_page'))
+
+
 @login_required(login_url='login')
 def remove_from_cart(request, product_id):
     product = Product.objects.get(id=product_id)
@@ -122,6 +245,8 @@ def remove_from_cart(request, product_id):
                 
     messages.info(request, f"Updated cart for {product.title}")
     return redirect(request.META.get('HTTP_REFERER', 'shop_page'))
+
+
 @login_required(login_url='login')
 def get_user_cart(request):
     """Helper function to retrieve or create the active cart."""
@@ -133,6 +258,8 @@ def get_user_cart(request):
         session_key = request.session.session_key
         cart, _ = Cart.objects.get_or_create(session_key=session_key, user=None)
     return cart
+
+
 @login_required(login_url='login')
 def cart_view(request):
     cart = get_user_cart(request)
@@ -143,7 +270,6 @@ def cart_view(request):
 
     if not cart_items:
         shipping_fee = Decimal('0.00')
-    # FIXED: Checked in descending order (highest to lowest) so larger tiers match properly
     elif subtotal >= Decimal('999.00'):
         shipping_fee = Decimal('0.00')
         discount = subtotal * Decimal('0.20')
@@ -168,6 +294,8 @@ def cart_view(request):
         'cart_count': get_cart_count(request)
     }
     return render(request, 'cart.html', context)
+
+
 @login_required(login_url='login')
 def delete_cart_item(request, item_id):
     cart = get_user_cart(request)
@@ -177,29 +305,16 @@ def delete_cart_item(request, item_id):
         messages.info(request, "Item removed from cart.")
     return redirect('cart_page')
 
-def get_cart_count(request):
-    """Helper to get total item quantity in the current user's cart."""
-    cart = None
-    if request.user.is_authenticated:
-        cart = Cart.objects.filter(user=request.user).first()
-    elif request.session.session_key:
-        cart = Cart.objects.filter(session_key=request.session.session_key, user=None).first()
-    
-    if cart:
-        return sum(item.quantity for item in cart.items.all())
-    return 0
 
 def home(request):
     categories = Category.objects.all()
     products_qs = Product.objects.filter(is_active=True)[:8]
 
-    # Fetch products belonging to the 'Fresh Produce' category
     vegetable_products = Product.objects.filter(
         is_active=True, 
         categories__Category_name__icontains='Fresh Produce'
     ).distinct()
 
-    # Get active cart for quantity tracking
     cart = None
     if request.user.is_authenticated:
         cart = Cart.objects.filter(user=request.user).first()
@@ -213,7 +328,6 @@ def home(request):
             for item in CartItem.objects.filter(cart=cart)
         }
 
-    # Attach cart quantities to products
     for product in list(products_qs) + list(vegetable_products):
         product.in_cart_qty = cart_quantities.get(product.id, 0)
 
@@ -224,16 +338,16 @@ def home(request):
         'cart_count': get_cart_count(request),
     }
     return render(request, 'bootstrap.html', context)
+
+
 @login_required(login_url='login')
 def orders_view(request):
     orders_list = Order.objects.filter(user=request.user).order_by('-created_at')
     
-    # Filter by status if selected
     status_filter = request.GET.get('status')
     if status_filter:
         orders_list = orders_list.filter(status=status_filter)
         
-    # Search query
     query = request.GET.get('q')
     if query:
         orders_list = orders_list.filter(items__product__title__icontains=query).distinct()
@@ -244,6 +358,8 @@ def orders_view(request):
         'cart_count': get_cart_count(request),
     }
     return render(request, 'orders.html', context)
+
+
 def register_view(request):
     if request.user.is_authenticated:
         return redirect('home')
@@ -257,20 +373,13 @@ def register_view(request):
             message = (
                 f"Hello {user.first_name or user.username},\n\n"
                 f"Welcome to Grocery Guide!\n"
-                f"Your account has been successfully created. You can now explore grocery recommendations, produce tips, and seasonal guides.\n\n"
-                f"Best regards,\nThe Grocery Guide Team"
+                f"Your account has been successfully created, and you are all set to explore our platform."
             )
-            from_email="groceryguideai@gmail.com"
+            from_email = "groceryguideai@gmail.com"
             recipient_list = [user.email]
 
             try:
-                send_mail(
-                    subject,
-                    message,
-                    from_email,
-                    recipient_list,
-                    fail_silently=False,
-                )
+                send_mail(subject, message, from_email, recipient_list, fail_silently=False)
             except Exception as e:
                 print(f"Error sending email: {e}")
 
@@ -282,6 +391,7 @@ def register_view(request):
         form = RegisterForm()
 
     return render(request, 'register.html', {'form': form})
+
 
 def login_view(request):
     if request.user.is_authenticated:
@@ -301,17 +411,19 @@ def login_view(request):
 
     return render(request, 'login.html', {'form': form})
 
+
 def logout_view(request):
     logout(request)
     messages.info(request, "You have been logged out.")
     return redirect('home')
+
+
 def credit_reward_after_delay(order_id):
     """Wait 2 seconds after delivery, check if returned, then credit pockets."""
     import time
     time.sleep(2)
     try:
         order = Order.objects.get(id=order_id)
-        # Verify order is still delivered and not returned/cancelled
         if order.status == 'Delivered' and not order.is_returned and not order.return_requested and not order.is_reward_credited:
             total_reward = sum(item.product.reward_pocket_amount * item.quantity for item in order.items.all())
             
@@ -325,7 +437,7 @@ def credit_reward_after_delay(order_id):
     except Order.DoesNotExist:
         pass
 
-# 1. Order Cancellation Policy (Within 1 minute)
+
 @login_required(login_url='login')
 def cancel_order_view(request, order_id):
     order = get_object_or_404(Order, id=order_id, user=request.user)
@@ -339,7 +451,7 @@ def cancel_order_view(request, order_id):
         messages.error(request, "Cancellation window of 1 minute has expired.")
     return redirect('orders_page')
 
-# 2. Return Policy Request (Within 5 hours of delivery)
+
 @login_required(login_url='login')
 def request_return_view(request, order_id):
     order = get_object_or_404(Order, id=order_id, user=request.user)
@@ -356,15 +468,16 @@ def request_return_view(request, order_id):
         messages.error(request, "Return is only available for successfully delivered items.")
     return redirect('orders_page')
 
-# 3. Admin / System action when marking order as Delivered
+
 def mark_order_delivered(order):
     if order.status != 'Delivered':
         order.status = 'Delivered'
         order.delivered_at = timezone.now()
         order.save()
         
-        # Trigger background thread for 2-second automatic reward crediting
         threading.Thread(target=credit_reward_after_delay, args=(order.id,)).start()
+
+
 def product_detail_view(request, slug):
     product = get_object_or_404(Product, slug=slug)
     reviews = product.reviews.all().order_by('-created_at')
@@ -392,6 +505,8 @@ def product_detail_view(request, slug):
         'cart_count': get_cart_count(request)
     }
     return render(request, 'product_detail.html', context)
+
+
 @login_required(login_url='login')
 def pocket_view(request):
     pocket, created = UserPocket.objects.get_or_create(user=request.user)
@@ -400,3 +515,145 @@ def pocket_view(request):
         'cart_count': get_cart_count(request),
     }
     return render(request, 'pocket.html', context)
+
+
+def delivery_required(view_func):
+    """Restricts view execution exclusively to users with a valid DeliveryProfile."""
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            messages.error(request, "Please log in to access this page.")
+            return redirect('delivery_login')
+            
+        if not hasattr(request.user, 'delivery_profile'):
+            messages.error(request, "Access denied. This area is strictly reserved for delivery personnel.")
+            return redirect('home')
+            
+        return view_func(request, *args, **kwargs)
+    return _wrapped_view
+
+
+def assign_delivery_person(order):
+    """Automatically assigns the first available delivery agent who is marked present today."""
+    available_agent = DeliveryProfile.objects.filter(
+        is_attended_today=True, 
+        is_available=True
+    ).first()
+
+    if available_agent:
+        order.delivery_person = available_agent.user
+        order.status = 'On the way'
+        order.save()
+
+        available_agent.is_available = False
+        available_agent.save()
+        return True
+    return False
+
+
+def delivery_login_view(request):
+    if request.user.is_authenticated:
+        if hasattr(request.user, 'delivery_profile'):
+            return redirect('delivery_dashboard')
+        else:
+            logout(request)
+
+    if request.method == 'POST':
+        form = AuthenticationForm(request, data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            
+            if hasattr(user, 'delivery_profile'):
+                login(request, user)
+                messages.success(request, f"Welcome back, Delivery Partner {user.username}!")
+                return redirect('delivery_dashboard')
+            else:
+                messages.error(request, "Access Denied: This login portal is strictly for delivery personnel.")
+        else:
+            messages.error(request, "Invalid username or password.")
+    else:
+        form = AuthenticationForm()
+
+    return render(request, 'delivery_login.html', {'form': form})
+
+
+@delivery_required
+def delivery_dashboard_view(request):
+    profile = request.user.delivery_profile
+    
+    active_orders = Order.objects.filter(delivery_person=request.user, status='On the way').order_by('-created_at')
+    completed_orders = Order.objects.filter(delivery_person=request.user, status='Delivered').order_by('-delivered_at')[:10]
+    
+    context = {
+        'profile': profile,
+        'active_orders': active_orders,
+        'completed_orders': completed_orders,
+        'cart_count': get_cart_count(request),
+    }
+    return render(request, 'delivery_dashboard.html', context)
+
+
+@delivery_required
+def toggle_attendance_view(request):
+    profile = request.user.delivery_profile
+    profile.is_attended_today = not profile.is_attended_today
+    profile.save()
+    
+    if profile.is_attended_today:
+        unassigned_order = Order.objects.filter(status='Pending', delivery_person__isnull=True).first()
+        if unassigned_order:
+            assign_delivery_person(unassigned_order)
+
+    status_label = "Present & Active" if profile.is_attended_today else "Off Duty"
+    messages.info(request, f"Attendance status updated: {status_label}")
+    return redirect('delivery_dashboard')
+
+
+@delivery_required
+def confirm_delivery_view(request, order_id):
+    order = get_object_or_404(Order, id=order_id, delivery_person=request.user)
+    
+    if request.method == 'POST':
+        proof_file = request.FILES.get('delivery_proof')
+        if not proof_file:
+            messages.error(request, "Please upload a photo proof of delivery!")
+            return redirect('delivery_dashboard')
+            
+        order.delivery_proof = proof_file
+        order.save()
+        
+        mark_order_delivered(order)
+
+        profile = request.user.delivery_profile
+        profile.is_available = True
+        profile.save()
+
+        next_order = Order.objects.filter(status='Pending', delivery_person__isnull=True).first()
+        if next_order:
+            assign_delivery_person(next_order)
+
+        messages.success(request, f"Order #{order.id} delivered and rewards credited!")
+        return redirect('delivery_dashboard')
+        
+    return redirect('delivery_dashboard')
+
+
+@login_required(login_url='login')
+def contact_view(request):
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        email = request.POST.get('email')
+        message = request.POST.get('message')
+        
+        if name and email and message:
+            ContactMessage.objects.create(name=name, email=email, message=message)
+            messages.success(request, "Your message has been sent successfully!")
+        else:
+            messages.error(request, "Please fill out all fields.")
+            
+        return redirect('contact')
+        
+    context = {
+        'cart_count': get_cart_count(request),
+    }
+    return render(request, 'contact.html', context)

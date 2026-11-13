@@ -52,7 +52,7 @@
                             <a href="{% url 'shop_page' %}" class="nav-item nav-link">Shop</a>
                             <a href="{% url 'cart_page' %}" class="nav-item nav-link active">Shop Cart</a>
                             <a href="#" class="nav-item nav-link">Checkout</a>
-                            <a href="{% url 'contact_page' %}" class="nav-item nav-link">Contact</a>
+                            <a href="{% url 'contact' %}" class="nav-item nav-link">Contact</a>
                         </div>
 <div class="d-flex m-3 me-0">
                             <button class="btn-search btn border border-secondary btn-md-square rounded-circle bg-white me-4" data-bs-toggle="modal" data-bs-target="#searchModal"><i class="fas fa-search text-primary"></i></button>
@@ -83,7 +83,14 @@
                         <i class="fas fa-box me-3 text-secondary"></i> Orders
                     </a>
                 </li>
-                <li>
+                
+<li>
+<a class="dropdown-item rounded py-2 d-flex align-items-center" href="{% url 'wishlist_page' %}">
+        <i class="fas fa-heart me-3 text-danger"></i> My Wishlist
+    </a>
+</li>
+
+<li>
                     <a class="dropdown-item rounded py-2 d-flex align-items-center" href="{% url 'pocket_page' %}">
                         <i class="fas fa-ticket-alt me-3 text-secondary"></i> Pockets
                     </a>

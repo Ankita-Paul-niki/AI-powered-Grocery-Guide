@@ -4,7 +4,7 @@
 
     <head>
         <meta charset="utf-8">
-        <title>Fruitables - Vegetable Website Template</title>
+        <title>Grocery Guide - Your One-Stop Shop</title>
         <meta content="width=device-width, initial-scale=1.0" name="viewport">
         <meta content="" name="keywords">
         <meta content="" name="description">
@@ -64,7 +64,7 @@
                             <a href="{% url 'shop_page' %}" class="nav-item nav-link active">Shop</a>
                             <a href="{% url 'cart_page' %}" class="nav-item nav-link">Shop Cart</a>
                             <a href="#" class="nav-item nav-link">Checkout</a>
-                            <a href="#" class="nav-item nav-link">Contact</a>
+                            <a href="{% url 'contact' %}" class="nav-item nav-link">Contact</a>
                         </div>
                         <div class="d-flex m-3 me-0">
                             <button class="btn-search btn border border-secondary btn-md-square rounded-circle bg-white me-4" data-bs-toggle="modal" data-bs-target="#searchModal">
@@ -97,7 +97,14 @@
                                                 <i class="fas fa-box me-3 text-secondary"></i> Orders
                                             </a>
                                         </li>
-                                        <li>
+                                        
+<li>
+<a class="dropdown-item rounded py-2 d-flex align-items-center" href="{% url 'wishlist_page' %}">
+        <i class="fas fa-heart me-3 text-danger"></i> My Wishlist
+    </a>
+</li>
+
+<li>
                                             <a class="dropdown-item rounded py-2 d-flex align-items-center" href="{% url 'pocket_page' %}">
                                                 <i class="fas fa-ticket-alt me-3 text-secondary"></i> Pockets
                                             </a>
@@ -181,16 +188,33 @@
                                 </form>
                             </div>
                             <div class="col-6"></div>
-                            <div class="col-xl-3">
-                                <div class="bg-light ps-3 py-3 rounded d-flex justify-content-between">
-                                    <label for="fruits">Default Sorting:</label>
-                                    <select id="fruits" name="fruitlist" class="border-0 form-select-sm bg-light me-3">
-                                        <option value="volvo">Nothing</option>
-                                        <option value="saab">Popularity</option>
-                                        <option value="opel">Organic</option>
-                                        <option value="audi">Fantastic</option>
-                                    </select>
-                                </div>
+                           <div class="col-xl-3">
+    <form method="GET" action="{% url 'shop_page' %}">
+        <!-- Preserve existing filters when sorting changes -->
+        {% if request.GET.category %}
+            <input type="hidden" name="category" value="{{ request.GET.category }}">
+        {% endif %}
+        {% if request.GET.keywords %}
+            <input type="hidden" name="keywords" value="{{ request.GET.keywords }}">
+        {% endif %}
+        {% if request.GET.max_price %}
+            <input type="hidden" name="max_price" value="{{ request.GET.max_price }}">
+        {% endif %}
+        {% if request.GET.additional %}
+            <input type="hidden" name="additional" value="{{ request.GET.additional }}">
+        {% endif %}
+
+        <div class="bg-light ps-3 py-3 rounded d-flex justify-content-between align-items-center">
+            <label for="sortingSelect" class="mb-0">Default Sorting:</label>
+            <select id="sortingSelect" name="sort" class="border-0 form-select-sm bg-light me-3" onchange="this.form.submit()">
+                <option value="nothing" {% if selected_sort == 'nothing' or not selected_sort %}selected{% endif %}>Nothing</option>
+                <option value="popularity" {% if selected_sort == 'popularity' %}selected{% endif %}>Popularity</option>
+                <option value="organic" {% if selected_sort == 'organic' %}selected{% endif %}>Organic</option>
+                <option value="fantastic" {% if selected_sort == 'fantastic' %}selected{% endif %}>Fantastic</option>
+            </select>
+        </div>
+    </form>
+</div>
                             </div>
                         </div>
 
@@ -208,7 +232,7 @@
                                                 {% for cat in categories %}
                                                 <li class="mb-2">
                                                     <div class="d-flex justify-content-between align-items-center fruite-name">
-                                                        <a href="?category={{ cat.Category_slug }}" class="text-dark text-decoration-none d-block w-100">
+                                                        <a href="?category={{ cat.Category_slug }}{% if request.GET.keywords %}&keywords={{ request.GET.keywords }}{% endif %}{% if selected_max_price %}&max_price={{ selected_max_price }}{% endif %}" class="text-dark text-decoration-none d-block w-100">
                                                             <div class="d-flex justify-content-between align-items-center w-100">
                                                                 <div>{{ cat.Category_name }}</div>
                                                                 <span class="text-muted">({{ cat.products.count }})</span>
@@ -227,40 +251,48 @@
                                         </div>
                                     </div>
                                     
-                                    <!-- Price Filter -->
+                                    <!-- Price & Additional Filter Form Sidebar -->
                                     <div class="col-lg-12">
-                                        <div class="mb-3">
-                                            <h4 class="mb-2">Price</h4>
-                                            <input type="range" class="form-range w-100" id="rangeInput" name="rangeInput" min="0" max="500" value="0" oninput="amount.value=rangeInput.value">
-                                            <output id="amount" name="amount" min-value="0" max-value="500" for="rangeInput">0</output>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Additional Radio Filters -->
-                                    <div class="col-lg-12">
-                                        <div class="mb-3">
-                                            <h4>Additional</h4>
-                                            <div class="mb-2">
-                                                <input type="radio" class="me-2" id="Categories-1" name="Categories-1" value="Beverages">
-                                                <label for="Categories-1"> Organic</label>
+                                        <form method="GET" action="{% url 'shop_page' %}">
+                                            {% if request.GET.category %}
+                                                <input type="hidden" name="category" value="{{ request.GET.category }}">
+                                            {% endif %}
+                                            {% if search_query %}
+                                                <input type="hidden" name="keywords" value="{{ search_query }}">
+                                            {% endif %}
+
+                                            <div class="mb-4">
+                                                <h4 class="mb-2">Price</h4>
+                                                <input type="range" class="form-range w-100" id="rangeInput" name="max_price" min="0" max="1000" value="{{ selected_min_price|default:1 }}" oninput="amount.value=rangeInput.value">
+                                                <output id="amount" name="amount" min-value="0" max-value="1000" for="rangeInput" class="fw-bold text-primary">{{ selected_min_price|default:1 }}</output>
                                             </div>
-                                            <div class="mb-2">
-                                                <input type="radio" class="me-2" id="Categories-2" name="Categories-1" value="Beverages">
-                                                <label for="Categories-2"> Fresh</label>
+
+                                            <div class="mb-4">
+                                                <h4>Additional</h4>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="additional" value="organic" id="additional_organic" {% if selected_additional == 'organic' %}checked{% endif %} onchange="this.form.submit()">
+                                                    <label class="form-check-label" for="additional_organic">Organic</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="additional" value="fresh" id="additional_fresh" {% if selected_additional == 'fresh' %}checked{% endif %} onchange="this.form.submit()">
+                                                    <label class="form-check-label" for="additional_fresh">Fresh</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="additional" value="sales" id="additional_sales" {% if selected_additional == 'sales' %}checked{% endif %} onchange="this.form.submit()">
+                                                    <label class="form-check-label" for="additional_sales">Sales</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="additional" value="discount" id="additional_discount" {% if selected_additional == 'discount' %}checked{% endif %} onchange="this.form.submit()">
+                                                    <label class="form-check-label" for="additional_discount">Discount</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="additional" value="expired" id="additional_expired" {% if selected_additional == 'expired' %}checked{% endif %} onchange="this.form.submit()">
+                                                    <label class="form-check-label" for="additional_expired">Expired</label>
+                                                </div>
                                             </div>
-                                            <div class="mb-2">
-                                                <input type="radio" class="me-2" id="Categories-3" name="Categories-1" value="Beverages">
-                                                <label for="Categories-3"> Sales</label>
-                                            </div>
-                                            <div class="mb-2">
-                                                <input type="radio" class="me-2" id="Categories-4" name="Categories-1" value="Beverages">
-                                                <label for="Categories-4"> Discount</label>
-                                            </div>
-                                            <div class="mb-2">
-                                                <input type="radio" class="me-2" id="Categories-5" name="Categories-1" value="Beverages">
-                                                <label for="Categories-5"> Expired</label>
-                                            </div>
-                                        </div>
+
+                                            <button type="submit" class="btn btn-primary w-100 rounded-pill text-white mb-4">Apply Filters</button>
+                                        </form>
                                     </div>
 
                                     <!-- Featured Products Sidebar Block -->
@@ -347,6 +379,41 @@
                                                         <img id="main-img-{{ product.id }}" src="{% static 'img/fruite-item-5.jpg' %}" class="img-fluid w-100 rounded-top" style="height: 200px; object-fit: cover;" alt="Default Image">
                                                     {% endif %}
                                                 </a>
+<a href="{% url 'toggle_wishlist' product.id %}" class="position-absolute me-2" style="top: 10px; right: 10px; z-index: 10;">
+                    <button class="btn btn-sm rounded-circle bg-white shadow-sm border" style="width: 35px; height: 35px;">
+                        {% if product.is_favorited %}
+                            <i class="fas fa-heart text-danger"></i>
+                        {% else %}
+                            <i class="far fa-heart text-muted"></i>
+                        {% endif %}
+                    </button>
+                </a>
+                                                <!-- ADMIN-CONTROLLED PRODUCT LABEL BADGES -->
+                                                <div class="position-absolute top-0 start-0 m-2 d-flex flex-column gap-1" style="z-index: 5;">
+                                                    {% if product.admin_badge == 'ORGANIC' %}
+                                                        <span class="badge bg-secondary px-2 py-1 text-white shadow-sm">Organic</span>
+                                                    {% elif product.admin_badge == 'FRESH' %}
+                                                        <span class="badge bg-primary px-2 py-1 text-white shadow-sm">Fresh</span>
+                                                    {% elif product.admin_badge == 'DISCOUNT' %}
+                                                        <span class="badge bg-success px-2 py-1 text-white shadow-sm">Discount</span>
+                                                    {% elif product.admin_badge == 'EXPIRED' %}
+                                                        <span class="badge bg-danger px-2 py-1 text-white shadow-sm">Expired</span>
+                                                    {% elif product.admin_badge == 'AUTO' or not product.admin_badge %}
+                                                        <!-- Automatic Rules Fallback -->
+                                                        {% if product.is_organic %}
+                                                            <span class="badge bg-secondary px-2 py-1 text-white shadow-sm">Organic</span>
+                                                        {% endif %}
+                                                        
+                                                        {% if product.original_price and product.original_price > product.price %}
+                                                            <span class="badge bg-success px-2 py-1 text-white shadow-sm">Discount</span>
+                                                        {% endif %}
+
+                                                        {% if product.is_expired %}
+                                                            <span class="badge bg-danger px-2 py-1 text-white shadow-sm">Expired</span>
+                                                        {% endif %}
+                                                    {% endif %}
+                                                    <!-- If 'NONE' is selected, no badges will display -->
+                                                </div>
                                             </div>
 
                                             <!-- Click-to-swap Gallery Thumbnails (Placed outside fruite-img to prevent overflow clipping) -->
@@ -415,21 +482,21 @@
                                     <div class="col-12">
                                         <div class="pagination d-flex justify-content-center mt-5">
                                             {% if products.has_previous %}
-                                                <a href="?page={{ products.previous_page_number }}" class="rounded">&laquo;</a>
+                                                <a href="?page={{ products.previous_page_number }}{% if request.GET.keywords %}&keywords={{ request.GET.keywords }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if selected_max_price %}&max_price={{ selected_max_price }}{% endif %}{% if selected_additional %}&additional={{ selected_additional }}{% endif %}" class="rounded">&laquo;</a>
                                             {% else %}
                                                 <a href="#" class="rounded disabled" style="opacity: 0.5; pointer-events: none;">&laquo;</a>
                                             {% endif %}
 
                                             {% for num in products.paginator.page_range %}
                                                 {% if products.number == num %}
-                                                    <a href="?page={{ num }}" class="active rounded">{{ num }}</a>
+                                                    <a href="?page={{ num }}{% if request.GET.keywords %}&keywords={{ request.GET.keywords }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if selected_max_price %}&max_price={{ selected_max_price }}{% endif %}{% if selected_additional %}&additional={{ selected_additional }}{% endif %}" class="active rounded">{{ num }}</a>
                                                 {% else %}
-                                                    <a href="?page={{ num }}" class="rounded">{{ num }}</a>
+                                                    <a href="?page={{ num }}{% if request.GET.keywords %}&keywords={{ request.GET.keywords }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if selected_max_price %}&max_price={{ selected_max_price }}{% endif %}{% if selected_additional %}&additional={{ selected_additional }}{% endif %}" class="rounded">{{ num }}</a>
                                                 {% endif %}
                                             {% endfor %}
 
                                             {% if products.has_next %}
-                                                <a href="?page={{ products.next_page_number }}" class="rounded">&raquo;</a>
+                                                <a href="?page={{ products.next_page_number }}{% if request.GET.keywords %}&keywords={{ request.GET.keywords }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if selected_max_price %}&max_price={{ selected_max_price }}{% endif %}{% if selected_additional %}&additional={{ selected_additional }}{% endif %}" class="rounded">&raquo;</a>
                                             {% else %}
                                                 <a href="#" class="rounded disabled" style="opacity: 0.5; pointer-events: none;">&raquo;</a>
                                             {% endif %}
@@ -552,7 +619,7 @@
                         <div class="d-flex flex-column text-start footer-item">
                             <h4 class="text-light mb-3">Shop Info</h4>
                             <a class="btn-link" href="">About Us</a>
-                            <a class="btn-link" href="">Contact Us</a>
+                            <a class="btn-link" href="{% url 'contact' %}">Contact Us</a>
                             <a class="btn-link" href="">Privacy Policy</a>
                             <a class="btn-link" href="">Terms & Condition</a>
                             <a class="btn-link" href="">Return Policy</a>
