@@ -296,3 +296,67 @@ class Wishlist(models.Model):
 
     def __str__(self):
         return f"{self.user.username}'s Wishlist - {self.product.title}"
+class Cuisine(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(max_length=100, unique=True, blank=True)
+    flag_image = models.ImageField(upload_to='cuisine_flags/', blank=True, null=True)     
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
+class Recipe(models.Model):
+    cuisine = models.ForeignKey(Cuisine, on_delete=models.CASCADE, related_name='recipes')
+    title = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=200, unique=True, blank=True)
+    description = models.TextField(blank=True, null=True)
+    instructions = models.TextField(help_text="Step-by-step cooking instructions")
+    image = models.ImageField(upload_to='recipes/', blank=True, null=True)
+    
+    products = models.ManyToManyField('Product', through='RecipeIngredient', related_name='used_in_recipes')
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.title)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.title} ({self.cuisine.name})"
+
+
+class RecipeIngredient(models.Model):
+    UNIT_CHOICES = [
+        ('g', 'Grams (g)'),
+        ('kg', 'Kilograms (kg)'),
+        ('ml', 'Milliliters (ml)'),
+        ('l', 'Liters (L)'),
+        ('tsp', 'Teaspoon (tsp)'),
+        ('tbsp', 'Tablespoon (tbsp)'),
+        ('cup', 'Cup(s)'),
+        ('pcs', 'Pieces (pcs)'),
+        ('taste', 'To Taste'),
+        ('pinch', 'Pinch'),
+    ]
+
+    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
+    product = models.ForeignKey('Product', on_delete=models.CASCADE)
+    required_quantity = models.DecimalField(max_digits=6, decimal_places=2, default=1.00, help_text="Amount needed")
+    unit_measure = models.CharField(max_length=20, choices=UNIT_CHOICES, default='g', help_text="Unit of measurement")
+
+    def __str__(self):
+        return f"{self.required_quantity} {self.get_unit_measure_display()} of {self.product.title} for {self.recipe.title}"
+class RecipeReview(models.Model):
+    recipe = models.ForeignKey(Recipe, related_name='reviews', on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    rating = models.IntegerField(default=5)  # 1 to 5 stars
+    comment = models.TextField()
+    image = models.ImageField(upload_to='recipe_reviews/images/', blank=True, null=True)
+    video = models.FileField(upload_to='recipe_reviews/videos/', blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.recipe.title} ({self.rating} Stars)"

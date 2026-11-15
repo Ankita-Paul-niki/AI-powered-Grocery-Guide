@@ -11,7 +11,11 @@ from .models import (
     ProductReview, 
     DeliveryProfile,
     ContactMessage,
-    Wishlist
+    Wishlist,
+    Cuisine,       
+    Recipe,        
+    RecipeIngredient,
+    RecipeReview 
 )
 
 class ProductImageInline(admin.TabularInline):
@@ -83,3 +87,32 @@ class ContactMessageAdmin(admin.ModelAdmin):
 class WishlistAdmin(admin.ModelAdmin):
     list_display = ('id', 'user', 'product', 'created_at')
     search_fields = ('user__username', 'product__title')
+class RecipeIngredientInline(admin.TabularInline):
+    model = RecipeIngredient
+    extra = 1
+    fields = ('product', 'required_quantity', 'unit_measure')
+
+@admin.register(Cuisine)
+class CuisineAdmin(admin.ModelAdmin):
+    list_display = ('name', 'slug')
+    prepopulated_fields = {'slug': ('name',)}
+    search_fields = ('name',)
+
+@admin.register(Recipe)
+class RecipeAdmin(admin.ModelAdmin):
+    list_display = ('title', 'cuisine', 'slug')
+    list_filter = ('cuisine',)
+    search_fields = ('title', 'description')
+    prepopulated_fields = {'slug': ('title',)}
+    inlines = [RecipeIngredientInline]
+
+@admin.register(RecipeIngredient)
+class RecipeIngredientAdmin(admin.ModelAdmin):
+    list_display = ('recipe', 'product', 'required_quantity', 'unit_measure')
+    list_filter = ('recipe__cuisine', 'recipe', 'unit_measure')
+    search_fields = ('recipe__title', 'product__title')
+@admin.register(RecipeReview)
+class RecipeReviewAdmin(admin.ModelAdmin):
+    list_display = ('recipe', 'user', 'rating', 'created_at')
+    list_filter = ('rating', 'created_at')
+    search_fields = ('comment', 'user__username', 'recipe__title')

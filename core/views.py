@@ -16,6 +16,8 @@ from django.utils import timezone
 from .models import ContactMessage
 from .forms import RegisterForm
 from django.db.models import Avg, Count, Q, F
+from .models import Cuisine, Recipe, RecipeIngredient
+
 from .models import (
     Cart,
     CartItem,
@@ -27,7 +29,8 @@ from .models import (
     ProductImage,
     ProductReview,
     UserPocket,
-    Wishlist,  # <--- Ensure Wishlist is imported here
+    Wishlist,
+    RecipeReview,
 )
 
 
@@ -205,7 +208,15 @@ def toggle_wishlist_view(request, product_id):
 
 @login_required(login_url='login')
 def add_to_cart(request, product_id):
-    product = Product.objects.get(id=product_id)
+    product = get_object_or_404(Product, id=product_id)
+    
+    # Read the requested quantity from the URL query parameter ?qty= (defaults to 1)
+    try:
+        add_qty = int(request.GET.get('qty', 1))
+        if add_qty < 1:
+            add_qty = 1
+    except ValueError:
+        add_qty = 1
     
     if request.user.is_authenticated:
         cart, created = Cart.objects.get_or_create(user=request.user)
@@ -216,14 +227,14 @@ def add_to_cart(request, product_id):
         cart, created = Cart.objects.get_or_create(session_key=session_key, user=None)
     
     cart_item, created = CartItem.objects.get_or_create(cart=cart, product=product)
-    if not created:
-        cart_item.quantity += 1
-        cart_item.save()
+    if created:
+        cart_item.quantity = add_qty
+    else:
+        cart_item.quantity += add_qty  # Adds up when you click + or add again
+    cart_item.save()
         
-    messages.success(request, f"Added {product.title} to your cart!")
+    messages.success(request, f"Added {add_qty} x {product.title} to your cart!")
     return redirect(request.META.get('HTTP_REFERER', 'shop_page'))
-
-
 @login_required(login_url='login')
 def remove_from_cart(request, product_id):
     product = Product.objects.get(id=product_id)
@@ -657,3 +668,151 @@ def contact_view(request):
         'cart_count': get_cart_count(request),
     }
     return render(request, 'contact.html', context)
+
+@login_required(login_url='login')
+def meal_guide_view(request):
+    cuisines = Cuisine.objects.all()
+    recipes = []
+    
+    selected_cuisine_id = request.GET.get('cuisine')
+    selected_recipe_id = request.GET.get('recipe')
+    selected_budget = request.GET.get('budget')
+    
+    try:
+        servings = int(request.GET.get('servings', 1))
+        if servings < 1:
+            servings = 1
+    except ValueError:
+        servings = 1
+    
+    selected_recipe = None
+    filtered_products = []
+    total_cost = Decimal('0.00')
+    recipe_in_budget = True
+
+    if selected_cuisine_id:
+        try:
+            recipes = Recipe.objects.filter(cuisine_id=int(selected_cuisine_id))
+        except ValueError:
+            recipes = []
+
+    cart = None
+    if request.user.is_authenticated:
+        cart = Cart.objects.filter(user=request.user).first()
+    elif request.session.session_key:
+        cart = Cart.objects.filter(session_key=request.session.session_key, user=None).first()
+
+    cart_quantities = {}
+    if cart:
+        cart_quantities = {
+            item.product_id: item.quantity 
+            for item in CartItem.objects.filter(cart=cart)
+        }
+
+    if selected_recipe_id:
+        try:
+            selected_recipe = get_object_or_404(Recipe, id=int(selected_recipe_id))
+            recipe_ingredients = RecipeIngredient.objects.filter(recipe=selected_recipe).select_related('product')
+
+            product_list = []
+            for ri in recipe_ingredients:
+                prod = ri.product
+                # Multiply required quantity by the user's selected servings count
+                base_req_qty = Decimal(str(ri.required_quantity))
+                req_qty = base_req_qty * Decimal(str(servings))
+                unit = ri.unit_measure
+                
+                cart_multiplier = 1
+                if unit in ['g', 'kg', 'pcs']:
+                    pkg_qty = Decimal(str(prod.package_quantity)) if prod.package_quantity else Decimal('1.00')
+                    if pkg_qty <= 0:
+                        pkg_qty = Decimal('1.00')
+                    multiplier = req_qty / pkg_qty
+                    item_total_price = prod.price * multiplier
+                    cart_multiplier = max(1, int(round(float(multiplier))))
+                else:
+                    item_total_price = prod.price * Decimal(str(servings))
+                
+                product_list.append({
+                    'product': prod,
+                    'required_qty': req_qty,
+                    'unit_measure': ri.get_unit_measure_display(),
+                    'store_measurement': prod.full_measurement,
+                    'price': prod.price,
+                    'item_total': item_total_price,
+                    'cart_multiplier': cart_multiplier,
+                    'in_cart_qty': cart_quantities.get(prod.id, 0)
+                })
+
+            filtered_products = product_list
+            total_cost = sum(item['item_total'] for item in filtered_products)
+
+            if selected_budget:
+                try:
+                    if '-' in selected_budget:
+                        min_val, max_val = map(float, selected_budget.split('-'))
+                        recipe_in_budget = min_val <= float(total_cost) <= max_val
+                    elif '+' in selected_budget:
+                        min_val = float(selected_budget.replace('+', ''))
+                        recipe_in_budget = float(total_cost) >= min_val
+                except ValueError:
+                    recipe_in_budget = True
+
+        except (ValueError, Recipe.DoesNotExist):
+            selected_recipe = None
+
+    recipe_reviews = selected_recipe.reviews.all().order_by('-created_at') if selected_recipe else []
+    avg_rating = selected_recipe.reviews.aggregate(Avg('rating'))['rating__avg'] if selected_recipe else 0
+    avg_rating = round(avg_rating, 1) if avg_rating else 0
+
+    context = {
+        'cuisines': cuisines,
+        'recipes': recipes,
+        'selected_cuisine_id': int(selected_cuisine_id) if selected_cuisine_id and selected_cuisine_id.isdigit() else None,
+        'selected_recipe_id': int(selected_recipe_id) if selected_recipe_id and selected_recipe_id.isdigit() else None,
+        'selected_recipe': selected_recipe if recipe_in_budget else selected_recipe,
+        'filtered_products': filtered_products if recipe_in_budget else [],
+        'selected_budget': selected_budget,
+        'servings': servings,
+        'total_cost': total_cost if recipe_in_budget else Decimal('0.00'),
+        'recipe_in_budget': recipe_in_budget,
+        'recipe_reviews': recipe_reviews,
+        'avg_rating': avg_rating,
+        'cart_count': get_cart_count(request) if 'get_cart_count' in globals() else 0,
+    }
+    return render(request, 'recipe_planner.html', context)
+@login_required(login_url='login')
+def add_all_recipe_to_cart(request, recipe_id):
+    recipe = get_object_or_404(Recipe, id=recipe_id)
+    recipe_ingredients = RecipeIngredient.objects.filter(recipe=recipe).select_related('product')
+    
+    if request.user.is_authenticated:
+        cart, created = Cart.objects.get_or_create(user=request.user)
+    else:
+        if not request.session.session_key:
+            request.session.create()
+        session_key = request.session.session_key
+        cart, created = Cart.objects.get_or_create(session_key=session_key, user=None)
+        
+    for ri in recipe_ingredients:
+        prod = ri.product
+        req_qty = Decimal(str(ri.required_quantity))
+        unit = ri.unit_measure
+        
+        cart_multiplier = 1
+        if unit in ['g', 'kg', 'pcs']:
+            pkg_qty = Decimal(str(prod.package_quantity)) if prod.package_quantity else Decimal('1.00')
+            if pkg_qty <= 0:
+                pkg_qty = Decimal('1.00')
+            multiplier = req_qty / pkg_qty
+            cart_multiplier = max(1, int(round(float(multiplier))))
+        
+        cart_item, created = CartItem.objects.get_or_create(cart=cart, product=prod)
+        if created:
+            cart_item.quantity = cart_multiplier
+        else:
+            cart_item.quantity += cart_multiplier
+        cart_item.save()
+        
+    messages.success(request, f"Successfully added all items for {recipe.title} to your cart!")
+    return redirect(request.META.get('HTTP_REFERER', 'guide'))

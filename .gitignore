@@ -1,3 +1,5 @@
 fresh_grocery_backup.json
 grocery_db_backup.json
 grocery_db_utf8.json
+
+GroceryGuide/settings.py
